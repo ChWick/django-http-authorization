@@ -1,9 +1,12 @@
 from django.http import HttpResponse
 from django.contrib.auth import authenticate
 import base64
+import logging
+logger = logging.getLogger(__name__)
 
 
 class BasicAuthMiddleware(object):
+
     @staticmethod
     def unauthorized():
         response = HttpResponse("""<html><title>Auth required</title><body>
@@ -14,21 +17,25 @@ class BasicAuthMiddleware(object):
 
     @staticmethod
     def process_request(request, check_function):
+        logger.debug("Processing basic authentication process.")
         if 'HTTP_AUTHORIZATION' not in request.META:
-
+            logger.warning("Received non HTTP Authorization request.")
             return BasicAuthMiddleware.unauthorized()
         else:
             authentication = request.META['HTTP_AUTHORIZATION']
             (authmeth, auth) = authentication.split(' ', 1)
             if 'basic' != authmeth.lower():
+                logger.warning("Only basic authentication is supported.")
                 return BasicAuthMiddleware.unauthorized()
 
             auth = base64.b64decode(auth.strip()).decode('utf-8')
             username, password = auth.split(':', 1)
             user = authenticate(username=username, password=password)
             if user is not None and check_function(user):
+                logger.info("User %s authenticated" % username)
                 return None
 
+            logger.warning("User %s failed to authenticate" % username)
             return BasicAuthMiddleware.unauthorized()
 
 
